@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>بات جی بی تی</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--me:#2f6fed;--ai:#ececE8;--text:#1c1c1c;--muted:#777;--line:#ddd}
+@media (prefers-color-scheme:dark){:root{--bg:#161616;--card:#1f1f1f;--ai:#2a2a2a;--text:#eee;--muted:#999;--line:#333}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font-family:Vazirmatn,Tahoma,system-ui,sans-serif;display:flex;flex-direction:column}
+header{padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+header b{font-size:16px}
+button{font-family:inherit;cursor:pointer}
+#clear{background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:4px 10px}
+#chat{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.m{max-width:85%;padding:10px 14px;border-radius:16px;line-height:1.8;white-space:pre-wrap;word-wrap:break-word}
+.me{align-self:flex-start;background:var(--me);color:#fff;border-bottom-right-radius:4px}
+.ai{align-self:flex-end;background:var(--ai);border-bottom-left-radius:4px}
+.err{color:#d33}
+form{display:flex;gap:8px;padding:10px;background:var(--card);border-top:1px solid var(--line)}
+textarea{flex:1;resize:none;border:1px solid var(--line);border-radius:12px;padding:10px;font:inherit;background:var(--bg);color:var(--text);max-height:120px}
+#send{background:var(--me);color:#fff;border:0;border-radius:12px;padding:0 18px}
+.hint{color:var(--muted);text-align:center;margin:auto;padding:20px}
+.hl{display:flex;align-items:center;gap:10px}
+#menu{background:none;border:0;padding:4px;color:var(--text);display:flex}
+#ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:20}
+#drawer{position:fixed;top:0;bottom:0;right:0;width:82%;max-width:320px;background:var(--card);z-index:21;transform:translateX(100%);transition:transform .22s;display:flex;flex-direction:column;border-left:1px solid var(--line)}
+body.open #drawer{transform:translateX(0)} body.open #ov{display:block}
+.dh{padding:14px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+#newc{background:var(--me);color:#fff;border:0;border-radius:10px;padding:10px}
+#list{flex:1;overflow-y:auto;padding:8px}
+.it{display:flex;align-items:center;gap:6px;padding:10px;border-radius:10px;cursor:pointer}
+.it:hover,.it.cur{background:var(--bg)}
+.it span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.it button{background:none;border:0;color:var(--muted);font-size:18px;padding:0 4px}
+.m img{display:block;max-width:100%;border-radius:12px}
+.gb{display:flex;flex-direction:column;gap:8px;min-width:230px}
+.gb b{font-size:15px}
+.gb .row{display:flex;gap:8px;flex-wrap:wrap}
+.gb button,.gb a.dl{background:var(--me);color:#fff;border:0;border-radius:10px;padding:8px 12px;text-decoration:none;font-size:14px;font-family:inherit;cursor:pointer}
+.gb iframe{width:100%;height:60vh;min-height:320px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.hr{display:flex;gap:6px}
+#help{background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:4px 10px}
+#gov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;z-index:30}
+#guide{position:fixed;z-index:31;display:none;top:50%;left:50%;transform:translate(-50%,-50%);width:92%;max-width:520px;max-height:86%;overflow-y:auto;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;line-height:1.9;font-size:14.5px}
+body.gopen #gov,body.gopen #guide{display:block}
+#guide h2{margin:0 0 4px;font-size:17px;display:flex;justify-content:space-between;align-items:center}
+#guide h3{margin:16px 0 4px;font-size:15px}
+#guide p{margin:4px 0}
+#guide .x{background:none;border:0;font-size:22px;color:var(--muted);padding:0 4px}
+#guide .ex{display:block;width:100%;text-align:right;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:6px 0;font:inherit;font-size:13.5px}
+#guide .tip{color:var(--muted);font-size:13px}
+.none{color:var(--muted);text-align:center;padding:20px;font-size:14px}
+</style>
+</head>
+<body>
+<header><div class="hl"><button id="menu" type="button" aria-label="منو"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><b>🤖 بات جی بی تی</b></div><div class="hr"><button id="help" type="button">راهنما</button><button id="clear" type="button">پاک کردن</button></div></header>
+<div id="gov"></div>
+<section id="guide" role="dialog" aria-label="راهنما">
+<h2><span>📖 راهنمای بات جی بی تی</span><button class="x" id="gx" type="button" aria-label="بستن">×</button></h2>
+<p>من یه دستیار هوش مصنوعی فارسی‌زبانم و بدون ثبت‌نام می‌تونی ازم هر سوالی بپرسی یا ازم عکس و بازی بخوای. روی هر مثال بزنی، توی کادر پیام قرار می‌گیره و فقط کافیه ارسال کنی.</p>
+
+<h3>💬 ۱. چت و پرسش‌وپاسخ</h3>
+<p>سوال علمی، نوشتن متن و ایمیل، ترجمه، خلاصه‌نویسی، کمک در برنامه‌نویسی و گفتگوی عادی. جواب‌ها به همون زبانی که می‌نویسی میاد و تو یه گفتگو، حرف‌های قبلی رو یادم می‌مونه.</p>
+<button class="ex" type="button" data-t="تفاوت هوش مصنوعی و یادگیری ماشین رو ساده توضیح بده">تفاوت هوش مصنوعی و یادگیری ماشین رو ساده توضیح بده</button>
+<button class="ex" type="button" data-t="یه ایمیل رسمی برای درخواست مرخصی بنویس">یه ایمیل رسمی برای درخواست مرخصی بنویس</button>
+<button class="ex" type="button" data-t="یه تابع پایتون بنویس که اعداد اول کوچک‌تر از ۱۰۰ رو پیدا کنه">یه تابع پایتون بنویس که اعداد اول کوچک‌تر از ۱۰۰ رو پیدا کنه</button>
+
+<h3>🎨 ۲. ساخت عکس</h3>
+<p>کافیه بنویسی «بساز»، «بکش» یا «طراحی کن» همراه با توضیح عکس. پیام «در حال ساخت عکس…» میاد و عکس توی چت نشون داده می‌شه. هر چی توضیحت دقیق‌تر باشه (سوژه، سبک، رنگ، نور)، نتیجه بهتره. روی عکس بزنی بزرگ می‌شه و می‌تونی ذخیره‌اش کنی.</p>
+<button class="ex" type="button" data-t="یه عکس از یک گربه فضانورد روی ماه بساز">یه عکس از یک گربه فضانورد روی ماه بساز</button>
+<button class="ex" type="button" data-t="یه لوگو برای کافه‌ای به اسم «بهار» طراحی کن">یه لوگو برای کافه‌ای به اسم «بهار» طراحی کن</button>
+<button class="ex" type="button" data-t="یه نقاشی از غروب آفتاب کنار دریا با کوه‌های دور بکش">یه نقاشی از غروب آفتاب کنار دریا با کوه‌های دور بکش</button>
+
+<h3>🎮 ۳. ساخت بازی</h3>
+<p>بازی‌ات رو توضیح بده و بنویس «بساز». طبق توضیحاتت یه بازی کامل HTML نوشته می‌شه که با کیبورد و لمس کار می‌کنه. بعدش دو دکمه می‌بینی: «▶ بازی کن» که همون‌جا توی چت بازی رو اجرا می‌کنه، و «⬇ دانلود فایل HTML» که فایل رو ذخیره می‌کنه تا بدون اینترنت و روی هر دستگاهی بازی کنی. ساخت بازی ممکنه چند ده ثانیه تا یکی دو دقیقه طول بکشه.</p>
+<button class="ex" type="button" data-t="یه بازی مار بساز که هر بار غذا بخوره سریع‌تر بشه و امتیاز نشون بده">یه بازی مار بساز که هر بار غذا بخوره سریع‌تر بشه و امتیاز نشون بده</button>
+<button class="ex" type="button" data-t="یه بازی حافظه با کارت‌های ایموجی ۴ در ۴ بساز که تعداد حرکت‌ها رو بشماره">یه بازی حافظه با کارت‌های ایموجی ۴ در ۴ بساز که تعداد حرکت‌ها رو بشماره</button>
+<button class="ex" type="button" data-t="یه بازی پرش بساز که یه توپ از روی مانع‌ها بپره و هر چه جلوتر بره سخت‌تر بشه">یه بازی پرش بساز که یه توپ از روی مانع‌ها بپره و هر چه جلوتر بره سخت‌تر بشه</button>
+
+<h3>🗂️ ۴. تاریخچهٔ گفتگوها</h3>
+<p>دکمهٔ سه‌خط (☰) بالای صفحه، لیست گفتگوهای قبلی رو نشون می‌ده. اسم هر گفتگو رو خود هوش مصنوعی انتخاب می‌کنه. روی هر کدوم بزنی وارد همون گفتگو می‌شی. با «＋ گفتگوی جدید» از اول شروع می‌کنی و با × یه گفتگو حذف می‌شه. گفتگوها فقط روی همین دستگاه و همین مرورگر ذخیره می‌شن.</p>
+
+<h3>⚙️ نکته‌های مفید</h3>
+<p>• با Enter ارسال می‌شه و با Shift+Enter خط جدید می‌نویسی.<br>• می‌تونی چند پیام پشت هم بفرستی؛ توی صف می‌رن و به ترتیب جواب می‌گیرن.<br>• دکمهٔ «پاک کردن» گفتگوی فعلی رو حذف می‌کنه.</p>
+<p class="tip">محدودیت‌ها: این ربات از سرویس‌های رایگان استفاده می‌کنه، پس گاهی ممکنه کند یا شلوغ باشه. نوشتهٔ فارسی داخل عکس معمولاً درست در نمیاد و بازی‌های خیلی پیچیده ممکنه باگ داشته باشن. بهتره اطلاعات خصوصی و حساس توش ننویسی.</p>
+</section>
+<div id="ov"></div>
+<aside id="drawer"><div class="dh"><b>گفتگوها</b><button id="newc" type="button">＋ گفتگوی جدید</button></div><div id="list"></div></aside>
+<div id="chat"><div class="hint">سلام! من بات جی بی تی‌ام. هر سوالی داری بپرس.</div></div>
+<form id="f">
+  <textarea id="t" rows="1" placeholder="پیامت را بنویس…"></textarea>
+  <button id="send" type="button">ارسال</button>
+</form>
+<script>
+const ERR="خطا در اتصال به سرویس بات جی بی تی";
+const SYSTEM="Your name is بات جی بی تی (Bot GPT). You are a smart, accurate, helpful assistant. Always reply in the same language the user writes in (Persian if they write Persian). Do not claim to be made by OpenAI.";
+const PROVIDERS=[
+  {url:"https://api.kilo.ai/api/gateway",fixed:"kilo-auto/free"},
+  {url:"https://api.llm7.io/v1"},
+  {url:"https://oai.endpoints.kepler.ai.cloud.ovh.net/v1"},
+  {url:"https://text.pollinations.ai/openai",fixed:"openai"}
+];
+const BIG=/120b|70b|large|gpt-oss|llama-3[._-]?3|qwen.*(32|72|235)b|deepseek|mistral-small/i;
+const BAD=/embed|whisper|tts|image|guard|rerank|vision|audio|code/i;
+let queue=[],busy=false,last=0;
+const KEY="bgpt_convs";
+function load(){try{const v=JSON.parse(localStorage.getItem(KEY)||"[]");return Array.isArray(v)?v:[]}catch(_){return []}}
+let convs=load();
+function newConv(){return {id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),title:"",messages:[],updated:Date.now()}}
+let cur=newConv();
+function persist(){
+  const save=()=>localStorage.setItem(KEY,JSON.stringify(convs.filter(c=>!c.deleted)));
+  try{save()}catch(_){
+    try{convs.forEach(c=>c.messages.forEach(m=>{if(m.game&&m!==cur.messages[cur.messages.length-1])m.game.html=null}));save()}catch(_2){}
+  }
+}
+function saveConv(c){if(!convs.includes(c))convs.push(c);c.updated=Date.now();persist();renderList()}
+const chat=document.getElementById("chat"),t=document.getElementById("t"),list=document.getElementById("list");
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function add(text,cls){
+  const h=chat.querySelector(".hint"); if(h)h.remove();
+  const d=document.createElement("div"); d.className="m "+cls; d.textContent=text;
+  chat.appendChild(d); chat.scrollTop=chat.scrollHeight; return d;
+}
+function renderChat(){
+  chat.innerHTML="";
+  if(!cur.messages.length){chat.innerHTML='<div class="hint">سلام! من بات جی بی تی‌ام. هر سوالی داری بپرس.</div>';return}
+  cur.messages.forEach(m=>{const d=add(m.image||m.game?"":m.content,m.role==="user"?"me":"ai");if(m.image)showImg(d,m.image);if(m.game)showGame(d,m.game)});
+}
+function renderList(){
+  const arr=convs.filter(c=>!c.deleted&&c.messages.length).sort((x,y)=>y.updated-x.updated);
+  list.innerHTML="";
+  if(!arr.length){list.innerHTML='<div class="none">هنوز گفتگویی ذخیره نشده</div>';return}
+  arr.forEach(c=>{
+    const d=document.createElement("div"); d.className="it"+(c===cur?" cur":"");
+    const sp=document.createElement("span"); sp.textContent=c.title||"گفتگوی جدید";
+    const x=document.createElement("button"); x.textContent="×"; x.title="حذف";
+    x.onclick=e=>{e.stopPropagation();removeConv(c)};
+    d.onclick=()=>{cur=c;renderChat();renderList();closeDrawer()};
+    d.append(sp,x); list.appendChild(d);
+  });
+}
+function removeConv(c){
+  c.deleted=true; convs=convs.filter(z=>z!==c); persist();
+  if(cur===c){cur=newConv();renderChat()}
+  renderList();
+}
+function openDrawer(){renderList();document.body.classList.add("open")}
+function closeDrawer(){document.body.classList.remove("open")}
+async function timed(url,opt,ms){
+  const c=new AbortController(), tm=setTimeout(()=>c.abort(),ms);
+  try{return await fetch(url,{...opt,signal:c.signal})}finally{clearTimeout(tm)}
+}
+async function modelOf(p){
+  if(p.model)return p.model;
+  if(p.fixed){p.model=p.fixed;return p.model}
+  const r=await timed(p.url+"/models",{},6000);
+  if(!r.ok)throw new Error("models");
+  const ids=((await r.json()).data||[]).map(m=>m.id).filter(i=>i&&!BAD.test(i));
+  if(!ids.length)throw new Error("models");
+  p.model=ids.find(i=>BIG.test(i))||ids[0]; return p.model;
+}
+async function viaProvider0(p,onChunk,msgs,opts){
+  const model=await modelOf(p);
+  const r=await timed(p.url+"/chat/completions",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({model,stream:true,...(opts.maxTokens?{max_tokens:opts.maxTokens}:{}),messages:[{role:"system",content:opts.system||SYSTEM},...msgs.map(m=>({role:m.role,content:m.content}))]})},opts.timeout||12000);
+  if(!r.ok){p.model=p.fixed||null;throw new Error("http")}
+  const ct=r.headers.get("content-type")||"";
+  if(!ct.includes("event-stream")||!r.body){
+    const j=await r.json(); const x=j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content;
+    if(!x)throw new Error("empty"); onChunk(x); return x;
+  }
+  const rd=r.body.getReader(),dec=new TextDecoder(); let buf="",full="";
+  try{
+    while(true){
+      const {done,value}=await rd.read(); if(done)break;
+      buf+=dec.decode(value,{stream:true});
+      const lines=buf.split("\n"); buf=lines.pop();
+      for(const ln of lines){
+        if(!ln.startsWith("data:"))continue;
+        const d=ln.slice(5).trim(); if(!d||d==="[DONE]")continue;
+        try{const c=JSON.parse(d).choices[0].delta.content; if(c){full+=c;onChunk(full)}}catch(_){}
+      }
+    }
+  }catch(e){ if(full)return full+"\n\n[ارتباط وسط جواب قطع شد]"; throw e }
+  if(!full)throw new Error("empty"); return full;
+}
+async function viaProvider(p,onChunk,msgs,opts={}){
+  const out=await viaProvider0(p,onChunk,msgs,opts);
+  if(opts.validate&&!opts.validate(out))throw new Error("invalid");
+  return out;
+}
+async function ask(onChunk,msgs,rounds=2,opts={}){
+  for(let round=0;round<rounds;round++){
+    for(let k=0;k<PROVIDERS.length;k++){
+      const i=(last+k)%PROVIDERS.length;
+      try{const a=await viaProvider(PROVIDERS[i],onChunk,msgs,opts); last=i; return a}
+      catch(_){}
+    }
+    await sleep(1500);
+  }
+  throw new Error(ERR);
+}
+function go(){
+  const q=t.value.trim(); if(!q)return;
+  t.value=""; add(q,"me");
+  const w=add(busy?"در صف…":"در حال فکر کردن…","ai");
+  queue.push({q,w,conv:cur}); pump(); t.focus();
+}
+const IMG_N="عکس|تصویر|نقاشی|پوستر|لوگو|آیکون|پرتره|والپیپر|وال‌پیپر|کارتون|انیمه|ایلوستریشن";
+const IMG_V="بساز|بسازی|بکش|بکشی|درست\\s?کن|تولید\\s?کن|طراحی\\s?کن|ایجاد\\s?کن|خلق\\s?کن|بزن|می‌?خوام|بده";
+const IMG_RE=new RegExp("(("+IMG_N+").{0,70}("+IMG_V+"))|(("+IMG_V+").{0,70}("+IMG_N+"))|(\\b(draw|paint|generate|create|make|design|imagine)\\b.{0,40}\\b(image|picture|photo|logo|poster|illustration|drawing|painting|wallpaper|portrait)\\b)|^\\s*\\/?imagine\\b","i");
+const NOT_IMG=/^\s*(چطور|چگونه|چه‌?طور|how\s+(do|to|can)|what\s+is)/i;
+function isImage(q){return IMG_RE.test(q)&&!NOT_IMG.test(q)}
+async function englishPrompt(q){
+  try{
+    const r=await ask(()=>{},[{role:"user",content:"Convert this image request into ONE detailed English prompt for an image generator (subject, style, lighting, composition, colors, quality keywords). Keep every detail the user asked for. Output only the prompt, max 60 words, no quotes.\n\nRequest: "+q}],1);
+    const p=r.replace(/["«»“”\n\r]/g," ").replace(/\s+/g," ").trim().slice(0,500);
+    return p.length>8?p:q;
+  }catch(_){return q}
+}
+function imgUrls(prompt){
+  const e=encodeURIComponent(prompt),seed=Math.floor(Math.random()*1e6);
+  return [
+    "https://image.pollinations.ai/prompt/"+e+"?width=768&height=768&nologo=true&model=flux&seed="+seed,
+    "https://image.pollinations.ai/prompt/"+e+"?width=768&height=768&nologo=true&seed="+seed,
+    "https://gen.pollinations.ai/image/"+e+"?width=768&height=768&nologo=true&seed="+seed
+  ];
+}
+function loadOne(url,ms){
+  return new Promise((res,rej)=>{
+    const im=new Image(); let done=false;
+    const tm=setTimeout(()=>{if(!done){done=true;im.src="";rej(new Error("timeout"))}},ms);
+    im.onload=()=>{if(!done){done=true;clearTimeout(tm);res(url)}};
+    im.onerror=()=>{if(!done){done=true;clearTimeout(tm);rej(new Error("img"))}};
+    im.src=url;
+  });
+}
+async function makeImage(prompt){
+  for(let round=0;round<2;round++){
+    for(const u of imgUrls(prompt)){
+      try{return await loadOne(u,50000)}catch(_){}
+    }
+    await sleep(2000);
+  }
+  throw new Error(ERR);
+}
+function showImg(el,url){
+  el.textContent="";
+  const a=document.createElement("a"); a.href=url; a.target="_blank"; a.rel="noopener";
+  const im=document.createElement("img"); im.src=url; im.alt="عکس ساخته‌شده";
+  a.appendChild(im); el.appendChild(a);
+}
+const GAME_N="بازی";
+const GAME_V="بساز|بسازی|بنویس|بنویسی|درست\\s?کن|طراحی\\s?کن|کد\\s?بزن|ایجاد\\s?کن|پیاده\\s?سازی|پیاده‌سازی|برنامه\\s?نویسی|بده|می‌?خوام";
+const GAME_RE=new RegExp("(("+GAME_N+").{0,70}("+GAME_V+"))|(("+GAME_V+").{0,70}("+GAME_N+"))|(\\b(make|build|create|code|develop|write|generate|program)\\b.{0,40}\\bgame\\b)","i");
+const NOT_GAME=/(داستان|مقاله|نقد|معرفی|تحلیل|review|story|essay)/i;
+function isGame(q){return GAME_RE.test(q)&&!NOT_GAME.test(q)&&!NOT_IMG.test(q)}
+const GAME_SYS="You are an expert game developer. Build EXACTLY the game the user describes, following every detail of their description. Output ONLY one complete, self-contained HTML file (all CSS and JavaScript inline, no external libraries, images, fonts or network requests, works offline). Requirements: fully working and bug-free game loop, mobile-friendly responsive layout (canvas sized to the window, viewport meta tag), BOTH keyboard and touch controls (on-screen buttons or swipe/tap when needed), score display, win/lose or game-over state with a restart button, smooth animation using requestAnimationFrame, clean attractive visuals using shapes/emoji/gradients. If the user wrote in Persian, write all on-screen text in Persian and set dir=rtl for text elements; otherwise use the user's language. Include a short instructions line on screen and a meaningful <title>. No placeholders or TODOs. Do not write any explanation and no markdown code fences: start with <!DOCTYPE html> and end with </html>.";
+function cleanHtml(raw){
+  let x=raw.replace(/```[a-zA-Z]*\n?/g,"");
+  const a=x.search(/<!DOCTYPE html|<html/i); if(a>0)x=x.slice(a);
+  const b=x.toLowerCase().lastIndexOf("</html>"); if(b>=0)x=x.slice(0,b+7);
+  return x.trim();
+}
+const gameOk=raw=>{const h=cleanHtml(raw);return /<html|<!doctype/i.test(h)&&/<\/html>\s*$/i.test(h)&&!raw.includes("[ارتباط وسط جواب قطع شد]")&&h.length>800};
+async function makeGame(q,onProgress){
+  const raw=await ask(x=>onProgress(x.length),[{role:"user",content:q}],2,{system:GAME_SYS,maxTokens:8000,timeout:25000,validate:gameOk});
+  const html=cleanHtml(raw);
+  const m=html.match(/<title>([\s\S]*?)<\/title>/i);
+  return {name:(m&&m[1].trim().slice(0,40))||"بازی",html};
+}
+function showGame(el,g){
+  el.textContent="";
+  const box=document.createElement("div"); box.className="gb";
+  const b=document.createElement("b"); b.textContent="🎮 "+g.name; box.appendChild(b);
+  if(!g.html){const p=document.createElement("div");p.textContent="کد این بازی برای صرفه‌جویی در حافظه ذخیره نشده. دوباره درخواست بده.";box.appendChild(p);el.appendChild(box);return}
+  const row=document.createElement("div"); row.className="row";
+  const play=document.createElement("button"); play.type="button"; play.textContent="▶ بازی کن";
+  const dl=document.createElement("a"); dl.className="dl"; dl.textContent="⬇ دانلود فایل HTML"; dl.download="bot-gpt-game.html";
+  dl.href=URL.createObjectURL(new Blob([g.html],{type:"text/html"}));
+  let fr=null;
+  play.onclick=()=>{
+    if(fr){fr.remove();fr=null;play.textContent="▶ بازی کن";return}
+    fr=document.createElement("iframe"); fr.setAttribute("sandbox","allow-scripts allow-pointer-lock"); fr.srcdoc=g.html;
+    box.appendChild(fr); play.textContent="✕ بستن بازی"; chat.scrollTop=chat.scrollHeight;
+  };
+  row.append(play,dl); box.appendChild(row); el.appendChild(box);
+}
+async function makeTitle(c){
+  try{
+    const first=c.messages[0].content.slice(0,300), ans=(c.messages[1]&&c.messages[1].content||"").slice(0,300);
+    const raw=await ask(()=>{},[{role:"user",content:"یک عنوان خیلی کوتاه (۲ تا ۵ کلمه) برای این گفتگو بنویس، به همان زبان گفتگو، فقط خود عنوان بدون نقل‌قول و توضیح:\n\nکاربر: "+first+"\nپاسخ: "+ans}],1);
+    const title=raw.replace(/["'«»“”*#\n\r]/g," ").replace(/\s+/g," ").trim().slice(0,40);
+    if(title)c.title=title;
+  }catch(_){}
+}
+async function pump(){
+  if(busy)return; busy=true;
+  while(queue.length){
+    const {q,w,conv}=queue.shift();
+    if(conv.deleted)continue;
+    conv.messages.push({role:"user",content:q});
+    if(isGame(q)){
+      const head="🎮 در حال ساخت بازی…\n«"+q.slice(0,200)+"»";
+      w.textContent=head;
+      try{
+        const g=await makeGame(q,n=>{w.textContent=head+"\n(کدنویسی: "+Math.round(n/100)/10+"K کاراکتر)"});
+        showGame(w,g);
+        conv.messages.push({role:"assistant",content:"[بازی ساخته شد: "+q.slice(0,200)+"]",game:g});
+        if(!conv.title)conv.title=q.slice(0,30);
+        saveConv(conv);
+        if(!conv.aiTitled){conv.aiTitled=true;await makeTitle(conv);if(!conv.deleted)saveConv(conv)}
+      }catch(_){
+        conv.messages.pop(); w.textContent=ERR; w.classList.add("err");
+      }
+      chat.scrollTop=chat.scrollHeight;
+      continue;
+    }
+    if(isImage(q)){
+      w.textContent="🎨 در حال ساخت عکس…\n«"+q.slice(0,200)+"»";
+      try{
+        const url=await makeImage(await englishPrompt(q));
+        showImg(w,url);
+        conv.messages.push({role:"assistant",content:"[عکسی با این توضیح ساخته شد: "+q.slice(0,200)+"]",image:url});
+        if(!conv.title)conv.title=q.slice(0,30);
+        saveConv(conv);
+        if(!conv.aiTitled){conv.aiTitled=true;await makeTitle(conv);if(!conv.deleted)saveConv(conv)}
+      }catch(_){
+        conv.messages.pop(); w.textContent=ERR; w.classList.add("err");
+      }
+      chat.scrollTop=chat.scrollHeight;
+      continue;
+    }
+    w.textContent="در حال فکر کردن…";
+    try{
+      const a=await ask(x=>{w.textContent=x;chat.scrollTop=chat.scrollHeight},conv.messages);
+      w.textContent=a; conv.messages.push({role:"assistant",content:a});
+      if(!conv.title)conv.title=q.slice(0,30);
+      saveConv(conv);
+      if(!conv.aiTitled){conv.aiTitled=true;await makeTitle(conv);if(!conv.deleted)saveConv(conv)}
+    }catch(_){
+      conv.messages.pop(); w.textContent=ERR; w.classList.add("err");
+    }
+    chat.scrollTop=chat.scrollHeight;
+  }
+  busy=false;
+}
+document.getElementById("send").addEventListener("click",go);
+document.getElementById("f").addEventListener("submit",e=>{e.preventDefault();go()});
+t.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();go()}});
+document.getElementById("clear").onclick=()=>{removeConv(cur);cur=newConv();renderChat();renderList()};
+document.getElementById("menu").onclick=openDrawer;
+document.getElementById("ov").onclick=closeDrawer;
+document.getElementById("newc").onclick=()=>{cur=newConv();renderChat();renderList();closeDrawer()};
+const openGuide=()=>{closeDrawer();document.body.classList.add("gopen")},closeGuide=()=>document.body.classList.remove("gopen");
+document.getElementById("help").onclick=openGuide;
+document.getElementById("gx").onclick=closeGuide;
+document.getElementById("gov").onclick=closeGuide;
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeGuide()});
+document.querySelectorAll("#guide .ex").forEach(b=>b.onclick=()=>{t.value=b.dataset.t;closeGuide();t.focus()});
+renderChat();renderList();
+</script>
+</body>
+</html>
