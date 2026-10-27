@@ -83,6 +83,14 @@ body.gopen #gov,body.gopen #guide{display:block}
 <h3>🗂️ ۴. تاریخچهٔ گفتگوها</h3>
 <p>دکمهٔ سه‌خط (☰) بالای صفحه، لیست گفتگوهای قبلی رو نشون می‌ده. اسم هر گفتگو رو خود هوش مصنوعی انتخاب می‌کنه. روی هر کدوم بزنی وارد همون گفتگو می‌شی. با «＋ گفتگوی جدید» از اول شروع می‌کنی و با × یه گفتگو حذف می‌شه. گفتگوها فقط روی همین دستگاه و همین مرورگر ذخیره می‌شن.</p>
 
+<h3>🌐 ۵. خوندن سایت‌ها و برنامه‌ها</h3>
+<p>اگه آدرس یه سایت بفرستی، یا از گوگل پلی و اپ استور بپرسی، یا اخبار، قیمت و اطلاعات روز بخوای، اول سایت‌ها رو می‌خونم و بعد با همون اطلاعات جواب می‌دم. آخر جواب، لینک منبع‌ها هم میاد. برای اینکه حتماً جستجو کنم، کلمه‌هایی مثل «جستجو کن»، «اخبار»، «قیمت» یا «گوگل پلی» رو توی پیامت بنویس.</p>
+<button class="ex" type="button" data-t="بهترین برنامه‌های ویرایش ویدیو توی گوگل پلی کدومان؟">بهترین برنامه‌های ویرایش ویدیو توی گوگل پلی کدومان؟</button>
+<button class="ex" type="button" data-t="توی گوگل پلی دربارهٔ برنامهٔ Telegram امتیاز و توضیحات رو بگو">توی گوگل پلی دربارهٔ برنامهٔ Telegram امتیاز و توضیحات رو بگو</button>
+<button class="ex" type="button" data-t="این صفحه رو خلاصه کن: https://en.wikipedia.org/wiki/Iran">این صفحه رو خلاصه کن: https://en.wikipedia.org/wiki/Iran</button>
+<button class="ex" type="button" data-t="آخرین اخبار هوش مصنوعی چیه؟">آخرین اخبار هوش مصنوعی چیه؟</button>
+<p class="tip">برای خوندن سایت‌ها از سرویس‌های رایگان واسطه استفاده می‌شه؛ پس متن پیامت یا آدرسی که می‌فرستی به اون‌ها هم می‌رسه. گاهی ممکنه یه سایت بلاک باشه یا کند جواب بده. در اون حالت بهت می‌گم که اینترنت وصل نشد.</p>
+
 <h3>⚙️ نکته‌های مفید</h3>
 <p>• با Enter ارسال می‌شه و با Shift+Enter خط جدید می‌نویسی.<br>• می‌تونی چند پیام پشت هم بفرستی؛ توی صف می‌رن و به ترتیب جواب می‌گیرن.<br>• دکمهٔ «پاک کردن» گفتگوی فعلی رو حذف می‌کنه.</p>
 <p class="tip">محدودیت‌ها: این ربات از سرویس‌های رایگان استفاده می‌کنه، پس گاهی ممکنه کند یا شلوغ باشه. نوشتهٔ فارسی داخل عکس معمولاً درست در نمیاد و بازی‌های خیلی پیچیده ممکنه باگ داشته باشن. بهتره اطلاعات خصوصی و حساس توش ننویسی.</p>
@@ -165,8 +173,10 @@ async function modelOf(p){
 }
 async function viaProvider0(p,onChunk,msgs,opts){
   const model=await modelOf(p);
-  const r=await timed(p.url+"/chat/completions",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({model,stream:true,...(opts.maxTokens?{max_tokens:opts.maxTokens}:{}),messages:[{role:"system",content:opts.system||SYSTEM},...msgs.map(m=>({role:m.role,content:m.content}))]})},opts.timeout||12000);
+  const send=withMax=>timed(p.url+"/chat/completions",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({model,stream:true,...(withMax&&opts.maxTokens?{max_tokens:opts.maxTokens}:{}),messages:[...(opts.noSystem?[]:[{role:"system",content:opts.system||SYSTEM}]),...msgs.map(m=>({role:m.role,content:m.content}))]})},opts.timeout||12000);
+  let r=await send(true);
+  if(!r.ok&&opts.maxTokens)r=await send(false);
   if(!r.ok){p.model=p.fixed||null;throw new Error("http")}
   const ct=r.headers.get("content-type")||"";
   if(!ct.includes("event-stream")||!r.body){
@@ -266,10 +276,31 @@ function cleanHtml(raw){
   const b=x.toLowerCase().lastIndexOf("</html>"); if(b>=0)x=x.slice(0,b+7);
   return x.trim();
 }
-const gameOk=raw=>{const h=cleanHtml(raw);return /<html|<!doctype/i.test(h)&&/<\/html>\s*$/i.test(h)&&!raw.includes("[ارتباط وسط جواب قطع شد]")&&h.length>800};
+const CUT="\n\n[ارتباط وسط جواب قطع شد]";
+const looksHtml=raw=>{const h=cleanHtml(raw);return /<html|<!doctype/i.test(h)&&h.length>300};
+const isComplete=raw=>!raw.includes("[ارتباط وسط جواب قطع شد]")&&/<\/html>\s*$/i.test(cleanHtml(raw));
+async function genGame(q,onP,mode){
+  const opts=mode===0
+    ?{system:GAME_SYS,maxTokens:8000,timeout:45000,validate:looksHtml}
+    :{noSystem:true,timeout:45000,validate:looksHtml};
+  const first=mode===0?q:GAME_SYS+"\n\nUser request:\n"+q;
+  let raw=(await ask(x=>onP(x.length),[{role:"user",content:first}],2,opts)).replace(CUT,"");
+  for(let i=0;i<3&&!isComplete(raw);i++){
+    const base=cleanHtml(raw);
+    const more=await ask(x=>onP(base.length+x.length),[
+      {role:"user",content:first},
+      {role:"assistant",content:base},
+      {role:"user",content:"The code was cut off. Continue EXACTLY from where it stopped. Output only the remaining code (no repetition, no explanation, no code fences) and finish with </html>."}
+    ],1,{...opts,validate:null});
+    raw=base+"\n"+more.replace(CUT,"").replace(/```[a-zA-Z]*\n?/g,"");
+  }
+  if(!isComplete(raw))throw new Error("incomplete");
+  return cleanHtml(raw);
+}
 async function makeGame(q,onProgress){
-  const raw=await ask(x=>onProgress(x.length),[{role:"user",content:q}],2,{system:GAME_SYS,maxTokens:8000,timeout:25000,validate:gameOk});
-  const html=cleanHtml(raw);
+  let html;
+  try{html=await genGame(q,onProgress,0)}
+  catch(_){html=await genGame(q,onProgress,1)}
   const m=html.match(/<title>([\s\S]*?)<\/title>/i);
   return {name:(m&&m[1].trim().slice(0,40))||"بازی",html};
 }
@@ -289,6 +320,91 @@ function showGame(el,g){
     box.appendChild(fr); play.textContent="✕ بستن بازی"; chat.scrollTop=chat.scrollHeight;
   };
   row.append(play,dl); box.appendChild(row); el.appendChild(box);
+}
+const URL_RE=/https?:\/\/[^\s<>"'،)»]+/gi;
+const APP_RE=/(گوگل\s?پلی|google\s?play|پلی\s?استور|play\s?store|اپ\s?استور|app\s?store)/i;
+const WEB_RE=/(جستجو|سرچ|search|گوگل\s?کن|از\s?اینترنت|در\s?اینترنت|اینترنت|اخبار|آخرین\s?خبر|جدیدترین|آخرین\s?(نسخه|اخبار)|قیمت|نرخ|آب\s?و\s?هوا|هوا\s?(چطور|چطوره)|\blatest\b|\bnews\b|\bprice\b|\bweather\b|\bcurrent(ly)?\b)/i;
+const isFa=x=>/[\u0600-\u06FF]/.test(x);
+function textFromHtml(html){
+  const d=new DOMParser().parseFromString(html,"text/html");
+  d.querySelectorAll("script,style,noscript,svg,nav,footer,header,iframe").forEach(e=>e.remove());
+  return (d.body?d.body.textContent:"").replace(/\s+/g," ").trim();
+}
+async function readUrl(url,max){
+  const tries=[
+    async()=>{const r=await timed("https://r.jina.ai/"+url,{},18000);if(!r.ok)throw 0;return await r.text()},
+    async()=>{const r=await timed("https://api.allorigins.win/raw?url="+encodeURIComponent(url),{},15000);if(!r.ok)throw 0;return textFromHtml(await r.text())},
+    async()=>{const r=await timed("https://corsproxy.io/?"+encodeURIComponent(url),{},15000);if(!r.ok)throw 0;return textFromHtml(await r.text())}
+  ];
+  for(const f of tries){
+    try{const x=(await f()).replace(/\s+/g," ").trim();if(x.length>80)return x.slice(0,max)}catch(_){}
+  }
+  return null;
+}
+async function ddgSearch(query){
+  const u="https://html.duckduckgo.com/html/?q="+encodeURIComponent(query);
+  let html=null;
+  for(const px of ["https://api.allorigins.win/raw?url=","https://corsproxy.io/?"]){
+    try{const r=await timed(px+encodeURIComponent(u),{},12000);if(r.ok){const h=await r.text();if(/result__a/.test(h)){html=h;break}}}catch(_){}
+  }
+  if(!html)return [];
+  const d=new DOMParser().parseFromString(html,"text/html"),out=[];
+  d.querySelectorAll(".result").forEach(el=>{
+    const a=el.querySelector("a.result__a"),sn=el.querySelector(".result__snippet"); if(!a)return;
+    let href=a.getAttribute("href")||""; const m=href.match(/uddg=([^&]+)/); if(m)href=decodeURIComponent(m[1]);
+    if(href.startsWith("//"))href="https:"+href; if(!/^https?:/.test(href))return;
+    out.push({title:a.textContent.trim(),url:href,snippet:sn?sn.textContent.trim():""});
+  });
+  return out.slice(0,5);
+}
+async function wikiSearch(query,fa){
+  const lang=fa?"fa":"en";
+  const r=await timed("https://"+lang+".wikipedia.org/w/api.php?action=query&generator=search&gsrsearch="+encodeURIComponent(query)+"&gsrlimit=3&prop=extracts&exintro=1&explaintext=1&exlimit=3&format=json&origin=*",{},10000);
+  if(!r.ok)return [];
+  const pages=Object.values(((await r.json()).query||{}).pages||{}).sort((a,b)=>a.index-b.index);
+  return pages.filter(p=>p.extract).map(p=>({title:p.title,url:"https://"+lang+".wikipedia.org/?curid="+p.pageid,text:p.extract.slice(0,1800)}));
+}
+async function itunesApps(query){
+  const r=await timed("https://itunes.apple.com/search?entity=software&limit=5&term="+encodeURIComponent(query),{},10000);
+  if(!r.ok)return "";
+  return ((await r.json()).results||[]).map(a=>"- "+a.trackName+" | "+(a.sellerName||"")+" | امتیاز: "+(a.averageUserRating?a.averageUserRating.toFixed(1):"?")+" ("+(a.userRatingCount||0)+" رأی) | "+(a.formattedPrice||"")+" | "+(a.primaryGenreName||"")+" | "+a.trackViewUrl+"\n  "+(a.description||"").replace(/\s+/g," ").slice(0,250)).join("\n");
+}
+const STOP=new Set("لطفا لطفاً برام برای من یه یک میخوام می‌خوام جستجو سرچ کن search for توی تو در از گوگل پلی استور اپ برنامه برنامهٔ اپلیکیشن google play store app اینترنت اطلاعات بگو بده پیدا درباره دربارهٔ رو را و the about please me find in on".split(" "));
+async function makeQuery(q){
+  const t=q.replace(URL_RE," ").split(/\s+/).filter(w=>w&&!STOP.has(w.toLowerCase().replace(/[؟?!.,،]/g,""))).join(" ").replace(/[؟?]/g,"").trim();
+  return (t.length>1?t:q).slice(0,90);
+}
+function needsWeb(q){return (q.match(URL_RE)||[]).length>0||APP_RE.test(q)||WEB_RE.test(q)}
+async function gatherWeb(q){
+  const parts=[],sources=[],fa=isFa(q),urls=(q.match(URL_RE)||[]).slice(0,2);
+  if(urls.length){
+    const pages=await Promise.all(urls.map(u=>readUrl(u,3500)));
+    pages.forEach((p,i)=>{if(p){parts.push("# صفحه: "+urls[i]+"\n"+p);sources.push(urls[i])}});
+  }else if(APP_RE.test(q)){
+    const query=await makeQuery(q);
+    const playUrl="https://play.google.com/store/search?c=apps&hl="+(fa?"fa":"en")+"&q="+encodeURIComponent(query);
+    const [play,ios]=await Promise.all([readUrl(playUrl,3000).catch(()=>null),itunesApps(query).catch(()=>"")]);
+    if(play){parts.push("# نتایج Google Play برای «"+query+"»:\n"+play);sources.push(playUrl)}
+    if(ios){parts.push("# نتایج App Store برای «"+query+"»:\n"+ios);sources.push("https://apps.apple.com/search?term="+encodeURIComponent(query))}
+  }else{
+    const query=await makeQuery(q);
+    const res=await ddgSearch(query).catch(()=>[]);
+    if(res.length){
+      parts.push("# نتایج جستجوی وب برای «"+query+"»:\n"+res.map(r=>"- "+r.title+": "+r.snippet+" ("+r.url+")").join("\n"));
+      const top=res.slice(0,2);
+      const pages=await Promise.all(top.map(r=>readUrl(r.url,1800).catch(()=>null)));
+      pages.forEach((p,i)=>{if(p)parts.push("# محتوای "+top[i].url+"\n"+p)});
+      res.slice(0,3).forEach(r=>sources.push(r.url));
+    }else{
+      const w=await wikiSearch(query,fa).catch(()=>[]);
+      w.forEach(p=>{parts.push("# ویکی‌پدیا — "+p.title+"\n"+p.text);sources.push(p.url)});
+    }
+  }
+  if(!parts.length)return null;
+  return {ctx:parts.join("\n\n").slice(0,5500),sources};
+}
+function enrich(ctx,q){
+  return "You have LIVE web data fetched just now (below). Answer the user's question using it. Be accurate, do not invent facts that are missing from it, and if it does not cover the question, say so. Reply in the user's language. Do not list URLs yourself (sources are appended automatically).\n\n=== WEB DATA ===\n"+ctx+"\n=== END ===\n\nUser question: "+q;
 }
 async function makeTitle(c){
   try{
@@ -337,7 +453,25 @@ async function pump(){
     }
     w.textContent="در حال فکر کردن…";
     try{
-      const a=await ask(x=>{w.textContent=x;chat.scrollTop=chat.scrollHeight},conv.messages);
+      let msgs=conv.messages,srcs=[],noWeb=false,g=null;
+      const chunk=x=>{w.textContent=x;chat.scrollTop=chat.scrollHeight};
+      if(needsWeb(q)){
+        w.textContent="🔎 در حال جستجو و خوندن سایت‌ها…";
+        try{
+          g=await Promise.race([gatherWeb(q),sleep(40000).then(()=>null)]);
+          if(g){msgs=[...conv.messages.slice(-9,-1),{role:"user",content:enrich(g.ctx,q)}];srcs=g.sources}else noWeb=true;
+        }catch(_){noWeb=true}
+        w.textContent="در حال فکر کردن…";
+      }
+      let a;
+      try{a=await ask(chunk,msgs,2,g?{timeout:25000}:{})}
+      catch(e){
+        if(!g)throw e;
+        try{a=await ask(chunk,[...conv.messages.slice(-9,-1),{role:"user",content:enrich(g.ctx.slice(0,1800),q)}],2,{timeout:25000})}
+        catch(_){srcs=[];noWeb=true;a=await ask(chunk,conv.messages)}
+      }
+      if(srcs.length)a+="\n\n🔗 منابع:\n"+srcs.map(u=>"• "+u).join("\n");
+      if(noWeb)a+="\n\n(⚠️ نتونستم به اینترنت وصل بشم؛ این جواب از دانش قبلی منه و ممکنه به‌روز نباشه.)";
       w.textContent=a; conv.messages.push({role:"assistant",content:a});
       if(!conv.title)conv.title=q.slice(0,30);
       saveConv(conv);
